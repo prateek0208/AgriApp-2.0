@@ -1,0 +1,11 @@
+streamlit
+pandas
+scikit-learn
+plotly
+folium
+streamlit-folium
+gTTS
+fpdf
+joblib
+requests
+bcrypt
