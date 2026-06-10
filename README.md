@@ -66,29 +66,59 @@
 
 ## 🏗️ System Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    STREAMLIT FRONTEND                     │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐   │
-│  │ AI Crop  │ │ Weather  │ │ Regional │ │Satellite │   │
-│  │ Command  │ │ Details  │ │  Intel   │ │  NDVI    │   │
-│  │ Center   │ │          │ │          │ │ Heatmap  │   │
-│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘   │
-│       │             │            │             │         │
-├───────┼─────────────┼────────────┼─────────────┼─────────┤
-│       ▼             ▼            ▼             ▼         │
-│  ┌─────────┐  ┌──────────┐ ┌──────────┐ ┌──────────┐   │
-│  │ ML Model│  │ Weather  │ │ Regional │ │Satellite │   │
-│  │(Sklearn)│  │  API     │ │ Database │ │ Engine   │   │
-│  └────┬────┘  └────┬─────┘ └────┬─────┘ └────┬─────┘   │
-│       │             │            │             │         │
-│       └─────────────┴────────────┴─────────────┘         │
-│                         │                                │
-│                    ┌────▼────┐                            │
-│                    │ SQLite  │                            │
-│                    │   DB    │                            │
-│                    └─────────┘                            │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    %% Define Styles
+    classDef ui fill:#1E88E5,stroke:#0D47A1,stroke-width:2px,color:white,font-weight:bold
+    classDef api fill:#43A047,stroke:#1B5E20,stroke-width:2px,color:white
+    classDef ml fill:#F4511E,stroke:#BF360C,stroke-width:2px,color:white
+    classDef db fill:#8E24AA,stroke:#4A148C,stroke-width:2px,color:white
+    
+    %% UI Components
+    subgraph Frontend [Streamlit Dashboard]
+        A1[🌾 Crop Command Center]:::ui
+        A2[🌦️ Weather Intelligence]:::ui
+        A3[🗺️ Regional Intel]:::ui
+        A4[🛰️ Satellite NDVI]:::ui
+    end
+
+    %% API & Processing
+    subgraph Backend [Data Processing & External APIs]
+        B1[OpenWeatherMap API]:::api
+        B2[Folium Map Engine]:::api
+        B3[PDF Report Generator]:::api
+        B4[Voice Advisory TTS]:::api
+    end
+
+    %% ML Models
+    subgraph MachineLearning [AI Models]
+        M1[Scikit-learn Crop Recommender]:::ml
+        M2[PyTorch/CNN Disease Detection]:::ml
+        M3[Mandi Price Predictor]:::ml
+    end
+
+    %% Databases
+    subgraph Storage [Databases]
+        D1[(Farm History DB)]:::db
+        D2[(Farmer Auth DB)]:::db
+        D3[(Satellite Logs DB)]:::db
+    end
+
+    %% Connections
+    A1 --> M1
+    A1 --> M3
+    A1 --> B3
+    A1 --> B4
+    
+    A2 --> B1
+    A3 --> M2
+    A4 --> B2
+    
+    M1 --> D1
+    M3 --> D1
+    B2 --> D3
+    
+    Frontend --> D2
 ```
 
 ---
@@ -109,7 +139,7 @@ cd AgriApp-2.0
 
 2. **Install dependencies**
 ```bash
-pip install streamlit pandas scikit-learn plotly folium streamlit-folium gtts fpdf joblib requests
+pip install streamlit pandas scikit-learn plotly folium streamlit-folium gtts fpdf joblib requests bcrypt
 ```
 
 3. **Run the application**
@@ -139,10 +169,15 @@ The app will automatically open at http://localhost:8501
 
 ```
 AgriApp-2.0/
+├── models/
+│   ├── my_crop_model.pkl      # Crop recommendation ML model
+│   └── price_model.pkl        # Mandi price predictor model
+├── database/
+│   ├── farm_data.db           # Farm records
+│   ├── farmer_auth.db         # User authentication records
+│   └── farm_records.db        # Satellite records
 ├── main.py                    # Main Streamlit application
 ├── auth_manager.py            # User authentication (login/register)
-├── database.py                # Farm records database operations
-├── config_file.py             # Configuration settings
 ├── price_engine.py            # Mandi price prediction engine
 ├── weather_intelligence.py    # Weather analysis & advisories
 ├── weather_main.py            # Weather data processing
