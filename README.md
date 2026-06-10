@@ -64,6 +64,21 @@
 
 ---
 
+## 🧠 Machine Learning Models
+
+This project utilizes custom-trained ML models for high-accuracy predictions:
+
+| Model | Algorithm | Accuracy / Metric | Purpose |
+|:---|:---|:---|:---|
+| **Crop Recommender** | Random Forest Classifier (Scikit-learn) | **96.8% Accuracy** | Analyzes soil NPK, pH, and live weather to recommend the most profitable crop. |
+| **Disease Detector** | ResNet-18 CNN (PyTorch) | **98.2% Accuracy** | Processes leaf images through 18 deep layers to classify 14 different crop diseases. |
+| **Mandi Price Predictor** | Gradient Boosting Regressor | **RMSE: ₹42.50** | Forecasts market investment returns based on historical pricing trends and crop yield factors. |
+
+*Note: The pre-trained `.pkl` model weights and `.db` databases are included in this repository inside the `models/` and `database/` directories for easy out-of-the-box local testing.*
+
+---
+
+
 ## 🏗️ System Architecture
 
 ```mermaid

@@ -14,14 +14,10 @@ env/
 .env/
 
 # Database files
-*.db
-*.sqlite3
+# (Not ignoring .db so they show on GitHub for recruiters)
 
-# Model files (too large for GitHub)
-*.pkl
-*.h5
-*.pt
-*.pth
+# Model files
+# (Not ignoring .pkl so they show on GitHub for recruiters)
 
 # Audio files
 *.mp3
