@@ -1,5 +1,5 @@
 # ============================================================
-# AgriTech AI — Python Dependencies (Streamlit Cloud Compatible)
+# AgriTech AI — Python Dependencies (Cloud Optimized)
 # ============================================================
 
 # Core framework
@@ -11,8 +11,8 @@ numpy>=1.24.0
 scikit-learn>=1.3.0
 joblib>=1.3.0
 
-# Deep Learning (lightweight for cloud)
-tensorflow-cpu==2.15.1
+# Lightweight AI inference (TFLite = 5MB vs TensorFlow = 500MB)
+tflite-runtime>=2.14.0
 
 # Image processing
 Pillow>=10.0.0

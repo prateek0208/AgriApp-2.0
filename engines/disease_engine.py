@@ -6,37 +6,61 @@ from core.language_pack import t
 from core.paths import get_path
 
 # ─────────────────────────────────────────────────────────────
-# REAL ML MODEL LOADER (CACHED)
+# REAL ML MODEL LOADER (CACHED) — Uses TFLite for lightweight cloud deployment
 # ─────────────────────────────────────────────────────────────
 @st.cache_resource(show_spinner="🧠 Loading AI Model into memory... (This takes a few seconds)")
 def load_ml_assets():
-    """Loads the .h5 model and class labels. Caches to avoid reloading on every click."""
+    """Loads the TFLite model and class labels. Caches to avoid reloading on every click."""
     try:
-        import tensorflow as tf
+        import os
         
-        # Try the new high-accuracy MobileNetV2 model first
-        mobilenet_path = get_path("models", "plant_disease_mobilenetv2.h5")
-        old_model_path = get_path("models", "sarva_krishi_dsanet_v2_optimized.h5")
+        tflite_path = get_path("models", "plant_disease.tflite")
+        h5_mobilenet_path = get_path("models", "plant_disease_mobilenetv2.h5")
+        h5_dsanet_path = get_path("models", "sarva_krishi_dsanet_v2_optimized.h5")
         classes_path = get_path("models", "classes.txt")
         
-        import os
-        if os.path.exists(mobilenet_path):
-            model = tf.keras.models.load_model(mobilenet_path, compile=False)
-            model_type = "mobilenetv2"
-        elif os.path.exists(old_model_path):
-            model = tf.keras.models.load_model(old_model_path, compile=False)
-            model_type = "dsanet"
-        else:
-            st.error("🚨 No model file found in the models/ folder.")
-            return None, [], "none"
+        interpreter = None
+        model_type = "tflite"
         
-        with open(classes_path, 'r') as f:
-            class_names = [line.strip() for line in f.readlines() if line.strip()]
+        # Priority: TFLite (lightweight) > H5 via TensorFlow (heavy)
+        if os.path.exists(tflite_path):
+            try:
+                import tflite_runtime.interpreter as tflite
+                interpreter = tflite.Interpreter(model_path=tflite_path)
+            except ImportError:
+                # Fallback: try tensorflow's built-in tflite interpreter
+                try:
+                    import tensorflow as tf
+                    interpreter = tf.lite.Interpreter(model_path=tflite_path)
+                except ImportError:
+                    pass
             
-        return model, class_names, model_type
-    except ImportError:
-        st.error("🚨 TensorFlow is not installed. Please run: `pip install tensorflow`")
-        return None, [], "none"
+            if interpreter is not None:
+                interpreter.allocate_tensors()
+                with open(classes_path, 'r') as f:
+                    class_names = [line.strip() for line in f.readlines() if line.strip()]
+                return interpreter, class_names, "tflite"
+        
+        # Fallback: Load .h5 model with full TensorFlow (for local dev)
+        try:
+            import tensorflow as tf
+            if os.path.exists(h5_mobilenet_path):
+                model = tf.keras.models.load_model(h5_mobilenet_path, compile=False)
+                model_type = "mobilenetv2"
+            elif os.path.exists(h5_dsanet_path):
+                model = tf.keras.models.load_model(h5_dsanet_path, compile=False)
+                model_type = "dsanet"
+            else:
+                st.error("🚨 No model file found in the models/ folder.")
+                return None, [], "none"
+            
+            with open(classes_path, 'r') as f:
+                class_names = [line.strip() for line in f.readlines() if line.strip()]
+            return model, class_names, model_type
+        except ImportError:
+            st.error("🚨 No ML runtime available. Install tflite-runtime or tensorflow.")
+            return None, [], "none"
+            
     except Exception as e:
         st.error(f"🚨 Failed to load model: {e}")
         return None, [], "none"
@@ -124,9 +148,8 @@ def get_treatments(disease_name):
 # INFERENCE ENGINE
 # ─────────────────────────────────────────────────────────────
 def analyze_leaf_image(image_bytes, model, class_names, model_type):
-    """Runs the real deep learning model with CORRECT preprocessing per model type."""
+    """Runs inference with TFLite or TensorFlow depending on what's loaded."""
     import io
-    import tensorflow as tf
     
     # 1. Open and resize image
     img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
@@ -135,19 +158,26 @@ def analyze_leaf_image(image_bytes, model, class_names, model_type):
     # 2. Convert to Array
     img_array = np.array(img).astype('float32')
     
-    # 3. Apply correct preprocessing based on model type
-    if model_type == "mobilenetv2":
-        # MobileNetV2 expects pixels in [-1, 1] via its preprocess_input
-        img_array = tf.keras.applications.mobilenet_v2.preprocess_input(img_array)
-    # For dsanet (old model), the model has a built-in Rescaling layer, so feed raw pixels
+    if model_type == "tflite":
+        # TFLite inference
+        img_array = np.expand_dims(img_array, axis=0)
+        
+        input_details = model.get_input_details()
+        output_details = model.get_output_details()
+        
+        model.set_tensor(input_details[0]['index'], img_array)
+        model.invoke()
+        predictions = model.get_tensor(output_details[0]['index'])
+    else:
+        # Full TensorFlow inference
+        if model_type == "mobilenetv2":
+            import tensorflow as tf
+            img_array = tf.keras.applications.mobilenet_v2.preprocess_input(img_array)
+        
+        img_array = np.expand_dims(img_array, axis=0)
+        predictions = model.predict(img_array, verbose=0)
     
-    # 4. Expand dimensions for batch size of 1
-    img_array = np.expand_dims(img_array, axis=0)
-    
-    # 5. Predict
-    predictions = model.predict(img_array, verbose=0)
     result_index = np.argmax(predictions[0])
-    
     disease_name = class_names[result_index]
     confidence = float(np.max(predictions[0]) * 100)
     
@@ -165,11 +195,13 @@ def show_plant_doctor_tab():
     model, class_names, model_type = load_ml_assets()
     
     if model is None:
-        st.warning("Cannot start Plant Doctor. The ML model is missing or TensorFlow is not installed.")
+        st.warning("Cannot start Plant Doctor. The ML model is missing or ML runtime is not installed.")
         return
     
     # Show which model is active
-    if model_type == "mobilenetv2":
+    if model_type == "tflite":
+        st.success("🧠 **AI Engine:** TFLite Optimized (Lightweight Cloud Model)")
+    elif model_type == "mobilenetv2":
         st.success("🧠 **AI Engine:** MobileNetV2 (High Accuracy, 90%+ on PlantVillage)")
     else:
         st.info("🧠 **AI Engine:** DSANet v2 (Lightweight model)")
