@@ -1,0 +1,30 @@
+# Environment & secrets — NEVER commit these
+.env
+.streamlit/secrets.toml
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+.venv/
+
+# Database files (recreated at runtime)
+*.db
+
+# Logs and temp files
+*.log
+*.mp3
+farm_logs.csv
+
+# IDE folders
+.vscode/
+.idea/
+
+# Test images (not needed in production)
+test_*.png
+test_*.jpg
+
+# Training scripts (not needed in production)
+train_*.py
